@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { candidateData, recruiterData, jobData } = require("../../../../modal");
+const { mailler } = require("../../../../services/mailerServices");
 
 module.exports.signupUser = async (req, res) => {
   try {
@@ -161,6 +162,25 @@ module.exports.ApplyJob = async (req, res) => {
 
     await user.save();
     await job.save();
+    //mail to candidate
+    await mailler({
+      to: "rky670473@gmail.com",
+      subject: "Job Application Successful",
+      text: "",
+      html: `<h3>Hi ${user.name},</h3><p>You have successfully applied for: <b>${job.jobTitle}</b>.</p>`,
+    });
+
+    //mail to recruiter
+    const recruiter = await recruiterData.findOne({ jobPost: job._id });
+    console.log("RRRRR", recruiter);
+    if (recruiter) {
+      await mailler({
+        to: recruiter.email,
+        subject: "New Job Application Received",
+        text: "",
+        html: `<h3>Hello ${recruiter.name},</h3><p><b>${user.name}</b> has applied for your job: <b>${job.jobTitle}</b>.</p>`,
+      });
+    }
 
     return res
       .status(200)
@@ -170,5 +190,38 @@ module.exports.ApplyJob = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Internal Server Error", success: false });
+  }
+};
+
+module.exports.getTotalJobsFeed = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    // Get total count
+    const totalJobs = await jobData.countDocuments();
+
+    // Get paginated data
+    const jobs = await jobData
+      .find()
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 }); // latest jobs first
+
+    return res.status(200).json({
+      success: true,
+      message: "Jobs fetched successfully",
+      totalJobs,
+      totalPages: Math.ceil(totalJobs / limit),
+      currentPage: page,
+      jobs,
+    });
+  } catch (error) {
+    console.error("Error", error);
+    return res
+      .status(500)
+      .json({ message: "Interval Server Error", success: false });
   }
 };

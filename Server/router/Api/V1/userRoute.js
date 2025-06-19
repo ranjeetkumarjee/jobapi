@@ -18,6 +18,8 @@ router.post(
   userController.createNewJob
 );
 
+router.get("/get-all-jobs", isAuthorize, userController.getTotalJobsFeed);
+
 router.get("/get-jobs", isAuthorize, isRecruiter, userController.getAllJobPost);
 
 router.post("/apply", isAuthorize, isCandidate, userController.ApplyJob);
